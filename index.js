@@ -2,7 +2,7 @@ const { Telegraf } = require("telegraf");
 const NodeGeocoder = require("node-geocoder");
 const fs = require('fs');
 require('dotenv').config();
-const { BOT_TOKEN, SERVER_URL } = process.env; // Додайте SERVER_URL в файл .env
+const { BOT_TOKEN } = process.env; 
 const bot = new Telegraf(BOT_TOKEN);
 const axios = require('axios');
 
@@ -189,7 +189,7 @@ bot.on('text', async (ctx) => {
           Longitude: longitude,
         };
 
-        // Використовуйте Axios для надсилання даних на сервер
+
         await axios.post('http://localhost:3000/trees', data);
         console.log('Дані були успішно відправлені на сервер.');
         ctx.reply(`Дякуємо за інформацію 💚`);
