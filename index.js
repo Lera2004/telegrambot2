@@ -115,12 +115,6 @@ bot.on('photo', async (ctx) => {
     treeId: null,
   };
 
-  // Збережіть фото у папці "photos" з унікальним ім'ям, що відповідає ідентифікатору користувача
-  const photoLink = `photos/${userId}_${Date.now()}.jpg`;
-  const photoFile = await bot.telegram.getFileLink(photoId);
-  const photoDownload = await axios.get(photoFile, { responseType: 'arraybuffer' });
-  fs.writeFileSync(photoLink, photoDownload.data);
-
   // Обробка назви дерева
   ctx.reply("Будь ласка, оберіть назву дерева🌳 або введіть її:", {
     reply_markup: {
@@ -175,22 +169,26 @@ bot.on('text', async (ctx) => {
       console.log(`Місце розташування: ${location}`);
 
       try {
-        const data = {
-          UserID: userId,
-          First_Name: userFirstName,
-          Last_Name: userLastName,
-          Username: userUsername,
-          Tree_Name: user.treeName,
-          Tree_State: user.treeState,
-          TreeID: treeId,
-          PhotoLink: photoLink,
-          Location: location,
-          Latitude: latitude,
-          Longitude: longitude,
-        };
+        const photoLink = await bot.telegram.getFileLink(user.photoId);
+        const photoStream = (await axios.get(photoLink, { responseType: 'stream' })).data;
 
+        await axios.postForm('http://127.0.0.1:3000/trees', {
+          photo: photoStream,
+          tree: JSON.stringify({
+            "UserID": userId,
+            "First_Name": userFirstName,
+            "Last_Name": userLastName,
+            "Username": userUsername,
+            "Tree_Name": user.treeName,
+            "Tree_State": user.treeState,
+            "TreeID": treeId,
+            "PhotoLink": photoLink,
+            "Location": location,
+            "Latitude": latitude,
+            "Longitude": longitude,
+          }),
+        });
 
-        await axios.post('http://localhost:3000/trees', data);
         console.log('Дані були успішно відправлені на сервер.');
         ctx.reply(`Дякуємо за інформацію 💚`);
       } catch (error) {
