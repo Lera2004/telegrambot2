@@ -5,42 +5,24 @@ require('dotenv').config();
 const { BOT_TOKEN } = process.env; 
 const bot = new Telegraf(BOT_TOKEN);
 const axios = require('axios');
-
 const geocoder = NodeGeocoder({
   provider: "openstreetmap",
   language: "uk",
 });
 
 const userStorage = {};
-
 let userFirstName = '';
 let userLastName = '';
 let userUsername = '';
-
-function getLastTreeId() {
-  const dataFile = 'tree_data.js';
-
-  if (fs.existsSync(dataFile)) {
-    const fileContents = fs.readFileSync(dataFile, 'utf-8');
-    const data = JSON.parse(fileContents);
-
-    if (data.length > 0) {
-      return data[data.length - 1].TreeID;
-    }
-  }
-
-  return 0;
-}
 
 const userStates = {};
 const treeStatesDescriptions = {
   '🟢 Здорове': 'Кора дерева має природний колір і текстуру для свого виду. Листя або хвоя яскраво зелені та здорові, без ознак пожовклості. Гілки та гілочки дерева міцні, без тріщин або ознак загрози ламки.',
   '🟠 Пошкоджене': 'Можливі ознаки механічних пошкоджень, такі як подряпини, розриви кори, дірки або зламані гілки. Листя або хвоя можуть бути подряпані, зірвані або пошкоджені вітром або іншими фізичними чинниками. Дерево може показувати ознаки загрози інфекціями чи хворобами.',
   '🔴 Хворе': 'Листя або хвоя можуть бути засохлі, зірвані або пожовклі, інколи з чорними чи коричневими плямами. Можливі ознаки гниття або загибелі деяких гілок, що викликані хворобами або паразитами.',
-  '⚪ Молоде': 'Дерево може бути менше за дорослі екземпляри свого виду. Листя або хвоя може мати яскравий зелений колір, свіжий вигляд та невелику кількість гілок. Стовбур може бути тонким і гладким, без видимих слідів старіння або великої кори.',
+  '🔵 Молоде': 'Дерево може бути менше за дорослі екземпляри свого виду. Листя або хвоя може мати яскравий зелений колір, свіжий вигляд та невелику кількість гілок. Стовбур може бути тонким і гладким, без видимих слідів старіння або великої кори.',
 };
 
-// Обробка команди /start
 bot.start(ctx => {
   const userId = ctx.message.from.id;
   userStates[userId] = {
@@ -65,10 +47,8 @@ bot.start(ctx => {
   });
 });
 
-// Обробка геолокації
 bot.on('location', async (ctx) => {
   const userId = ctx.message.from.id;
-
   if (!userStates[userId].hasSentLocation) {
     userStates[userId].hasSentLocation = true;
     const latitude = ctx.message.location.latitude;
@@ -103,19 +83,15 @@ bot.on('location', async (ctx) => {
   }
 });
 
-// Обробка фото
 bot.on('photo', async (ctx) => {
   const userId = ctx.message.from.id;
   const photoId = ctx.message.photo[0].file_id;
-
   userStorage[userId] = {
     photoId: photoId,
     treeName: null,
     treeState: null,
-    treeId: null,
   };
 
-  // Обробка назви дерева
   ctx.reply("Будь ласка, оберіть назву дерева🌳 або введіть її:", {
     reply_markup: {
       keyboard: [
@@ -129,7 +105,6 @@ bot.on('photo', async (ctx) => {
   });
 });
 
-// Обробка текстового повідомлення
 bot.on('text', async (ctx) => {
   const userId = ctx.message.from.id;
   const user = userStorage[userId];
@@ -158,21 +133,20 @@ bot.on('text', async (ctx) => {
       user.treeState = ctx.message.text;
 
       const photoLink = `photos/${userId}_${Date.now()}.jpg`;
-      const treeId = getLastTreeId() + 1;
       const latitude = userStates[userId].latitude;
       const longitude = userStates[userId].longitude;
       const treeName = user.treeName;
       const treeState = user.treeState;
       const location = userStates[userId].location;
 
-      console.log(`Користувач ${userId} відправив фото з обраною назвою дерева: ${treeName}, стан: ${treeState}, ID: ${treeId}`);
+      console.log(`Користувач ${userId} відправив фото з обраною назвою дерева: ${treeName}, стан: ${treeState}`);
       console.log(`Місце розташування: ${location}`);
 
       try {
         const photoLink = await bot.telegram.getFileLink(user.photoId);
         const photoStream = (await axios.get(photoLink, { responseType: 'stream' })).data;
 
-        await axios.postForm('http://127.0.0.1:3000/trees', {
+        await axios.postForm('http://10.0.0.104:3000/trees', {
           photo: photoStream,
           tree: JSON.stringify({
             "UserID": userId,
@@ -181,7 +155,6 @@ bot.on('text', async (ctx) => {
             "Username": userUsername,
             "Tree_Name": user.treeName,
             "Tree_State": user.treeState,
-            "TreeID": treeId,
             "PhotoLink": photoLink,
             "Location": location,
             "Latitude": latitude,
@@ -190,7 +163,8 @@ bot.on('text', async (ctx) => {
         });
 
         console.log('Дані були успішно відправлені на сервер.');
-        ctx.reply(`Дякуємо за інформацію 💚`);
+        ctx.reply(`Дякуємо за інформацію 💚 Переглянути мапу зелених насаджень [тут](http://10.0.0.104:5173/)`, { parse_mode: 'Markdown' });
+
       } catch (error) {
         console.error(`Помилка відправлення даних на сервер: ${error.message}`);
         ctx.reply('Виникла помилка при обробці вашої інформації. Будь ласка, спробуйте ще раз.');
